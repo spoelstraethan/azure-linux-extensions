@@ -68,6 +68,7 @@ class PatchBootSystemState(OSEncryptionState):
             raise Exception("Failed to find the uuid for boot device: {0}", self.bootfs_block_device)
 
         luks_uuid = self._get_luks_uuid()
+        additional_dracut_conf = ""
 
         if self._is_detached_header_fix():
             # Add the new kernel param if the detached header fix is present
@@ -82,13 +83,14 @@ class PatchBootSystemState(OSEncryptionState):
             # Force dracut to include LVM and Crypt modules
             self._append_contents_to_file('\nadd_dracutmodules+=" crypt lvm"\n',
                                           '/etc/dracut.conf.d/ade.conf')
+            additional_dracut_conf = "--lvmconf"
         else:
             self._append_contents_to_file('\nadd_dracutmodules+=" crypt"\n',
                                           '/etc/dracut.conf.d/ade.conf')
             self._add_kernelopts(["root=/dev/mapper/osencrypt"])
 
         # Everything is ready, repack dracut. None of the changes above will take affect until this line is executed.
-        self.command_executor.ExecuteInBash('dracut -f -v', True)
+        self.command_executor.ExecuteInBash('dracut -f -v {0} --regenarate-all'.format(additional_dracut_conf), True)
 
     def should_exit(self):
         self.context.logger.log("Verifying if machine should exit patch_boot_system state")
